@@ -1,6 +1,6 @@
-#[path = "core/scribe.rs"]
-mod scribe;
+#[path = "core/editor.rs"]
+mod editor;
 
 fn main() {
-    scribe::NotSoFancy::default().run();
+    editor::Editor::default().run();
 }

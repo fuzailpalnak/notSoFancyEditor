@@ -5,11 +5,11 @@ use std::io::{stdout, Stdout};
 
 use crossterm::event::{self, Event, KeyEventKind};
 
-pub struct NotSoFancy {}
+pub struct Editor {}
 
-impl NotSoFancy {
+impl Editor {
     pub fn default() -> Self {
-        NotSoFancy {}
+        Editor {}
     }
 
     pub fn run(&mut self) {
@@ -21,23 +21,32 @@ impl NotSoFancy {
     }
 
     fn repl(&mut self) -> Result<(), std::io::Error> {
+        let mut buffer: Vec<String> = vec![String::new()];
+        let (mut cursor_x, mut cursor_y) = (0, 0);
+
         let mut stdout: Stdout = stdout();
 
         termx::Termx::setup(&mut stdout)?;
-        println!("Not So Fancy Editor (Press Ctrl + X to quit)");
-        print!(">> ");
 
         loop {
             let event = event::read()?;
 
             if let Event::Key(key_event) = event {
-                match termx::Editor::quit(&key_event) {
+                match termx::InputHandler::quit(&key_event) {
                     termx::UseEditor::Quit => {
                         return termx::Termx::cleanup(&stdout);
                     }
 
                     termx::UseEditor::Continue => match key_event.kind {
-                        KeyEventKind::Press => termx::Editor::read(&key_event),
+                        KeyEventKind::Press => {
+                            termx::InputHandler::read(
+                                &key_event,
+                                &mut buffer,
+                                &mut cursor_x,
+                                &mut cursor_y,
+                            );
+                            termx::InputHandler::render(&buffer, &cursor_x, &cursor_y)?;
+                        }
                         _ => (),
                     },
                 }
