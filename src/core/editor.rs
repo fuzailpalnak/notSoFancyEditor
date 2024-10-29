@@ -34,6 +34,7 @@ impl Editor {
 
     fn repl(&mut self) -> Result<(), std::io::Error> {
         termx::Termx::setup(&mut self.stdout)?;
+        termx::InputHandler::render(&self.buffer, &self.cursor_position, &mut self.stdout)?;
 
         loop {
             let event = event::read()?;
@@ -53,8 +54,7 @@ impl Editor {
                             );
                             termx::InputHandler::render(
                                 &self.buffer,
-                                &self.cursor_position.x,
-                                &self.cursor_position.y,
+                                &self.cursor_position,
                                 &mut self.stdout,
                             )?;
                         }

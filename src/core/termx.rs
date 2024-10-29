@@ -2,12 +2,13 @@ use crate::editor::Position;
 
 use std::io::Stdout;
 
-use crossterm::cursor;
 use crossterm::cursor::MoveTo;
+use crossterm::cursor::{Hide, Show};
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use crossterm::execute;
 use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, Clear, ClearType, EnterAlternateScreen, LeaveAlternateScreen,
+    disable_raw_mode, enable_raw_mode, size, Clear, ClearType, EnterAlternateScreen,
+    LeaveAlternateScreen,
 };
 use crossterm::ExecutableCommand;
 
@@ -24,7 +25,7 @@ impl Termx {
     pub fn setup(mut stdout: &Stdout) -> Result<(), std::io::Error> {
         enable_raw_mode()?;
         stdout.execute(EnterAlternateScreen)?;
-        execute!(stdout, Clear(ClearType::All), cursor::MoveTo(0, 0))?;
+        // execute!(stdout, Clear(ClearType::All), cursor::MoveTo(0, 0))?;
         return Ok(());
     }
 
@@ -62,15 +63,10 @@ impl InputHandler {
 
     pub fn render(
         buffer: &[String],
-        cursor_x: &usize,
-        cursor_y: &usize,
+        cursor_position: &Position,
         stdout: &mut Stdout,
     ) -> Result<(), std::io::Error> {
         execute!(stdout, MoveTo(0, 0), Clear(ClearType::All))?;
-
-        // println!(
-        //     "Not So Fancy Editor - Use arrow keys to navigate, 'Ctrl+S' to save, 'Ctrl+X' to quit."
-        // );
 
         for (i, line) in buffer.iter().enumerate() {
             let position_y = (i + 1) as u16;
@@ -78,7 +74,25 @@ impl InputHandler {
             execute!(stdout, MoveTo(0, position_y))?;
         }
 
-        execute!(stdout, MoveTo(*cursor_x as u16, *cursor_y as u16))?;
+        execute!(
+            stdout,
+            MoveTo(cursor_position.x as u16, cursor_position.y as u16)
+        )?;
+
+        let (terminal_width, _) = size()?;
+        let instructions = "Use arrow keys to navigate, Ctrl+X to exit.";
+        let instruction_length = instructions.len() as u16;
+        let center_position = (terminal_width - instruction_length) / 2;
+
+        let highlighted_instructions = format!("\x1b[1;32m{}\x1b[0m", instructions);
+
+        execute!(stdout, MoveTo(center_position, (buffer.len()) as u16))?;
+        println!("{}", highlighted_instructions);
+
+        execute!(
+            stdout,
+            MoveTo(cursor_position.x as u16, cursor_position.y as u16)
+        )?;
 
         Ok(())
     }
@@ -99,8 +113,6 @@ impl Action {
         match buffer.get_mut(cursor_position.y) {
             Some(_line) => {
                 buffer.push("\n".to_string());
-                buffer.push(String::new());
-
                 cursor_position.x = 0;
                 cursor_position.y += 1;
             }
