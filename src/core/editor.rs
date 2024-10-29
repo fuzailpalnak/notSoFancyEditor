@@ -1,9 +1,18 @@
 #[path = "termx.rs"]
 mod termx;
 
+#[path = "key_stroke.rs"]
+mod key_stroke;
+
 use std::io::{stdout, Stdout};
 
 use crossterm::event::{self, Event, KeyEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
+
+pub enum UseEditor {
+    Continue,
+    Quit,
+}
 
 pub struct Position {
     pub x: usize,
@@ -24,6 +33,30 @@ impl Editor {
         }
     }
 
+    pub fn register_event(
+        key_event: &KeyEvent,
+        buffer: &mut Vec<String>,
+        cursor_position: &mut Position,
+    ) {
+        match key_event.code {
+            KeyCode::Char(c) => key_stroke::KeyStroke::read(buffer, cursor_position, c),
+            KeyCode::Enter => key_stroke::KeyStroke::enter(buffer, cursor_position),
+            KeyCode::Backspace => key_stroke::KeyStroke::back_space(buffer, cursor_position),
+            _ => {}
+        }
+    }
+
+    pub fn quit(key_event: &KeyEvent) -> UseEditor {
+        match key_event {
+            KeyEvent {
+                code: KeyCode::Char('x'),
+                modifiers: KeyModifiers::CONTROL,
+                ..
+            } => UseEditor::Quit,
+            _ => UseEditor::Continue,
+        }
+    }
+
     pub fn run(&mut self) {
         let result = self.repl();
         match result {
@@ -34,25 +67,25 @@ impl Editor {
 
     fn repl(&mut self) -> Result<(), std::io::Error> {
         termx::Termx::setup(&mut self.stdout)?;
-        termx::InputHandler::render(&self.buffer, &self.cursor_position, &mut self.stdout)?;
+        termx::Termx::render(&self.buffer, &self.cursor_position, &mut self.stdout)?;
 
         loop {
             let event = event::read()?;
 
             if let Event::Key(key_event) = event {
-                match termx::InputHandler::quit(&key_event) {
-                    termx::UseEditor::Quit => {
+                match Editor::quit(&key_event) {
+                    UseEditor::Quit => {
                         return termx::Termx::cleanup(&self.stdout);
                     }
 
-                    termx::UseEditor::Continue => match key_event.kind {
+                    UseEditor::Continue => match key_event.kind {
                         KeyEventKind::Press => {
-                            termx::InputHandler::register_event(
+                            Editor::register_event(
                                 &key_event,
                                 &mut self.buffer,
                                 &mut self.cursor_position,
                             );
-                            termx::InputHandler::render(
+                            termx::Termx::render(
                                 &self.buffer,
                                 &self.cursor_position,
                                 &mut self.stdout,
