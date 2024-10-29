@@ -5,11 +5,23 @@ use std::io::{stdout, Stdout};
 
 use crossterm::event::{self, Event, KeyEventKind};
 
-pub struct Editor {}
+pub struct Position {
+    pub x: usize,
+    pub y: usize,
+}
+pub struct Editor {
+    buffer: Vec<String>,
+    cursor_position: Position,
+    stdout: Stdout,
+}
 
 impl Editor {
     pub fn default() -> Self {
-        Editor {}
+        Editor {
+            buffer: vec![String::new()],
+            cursor_position: Position { x: 0, y: 0 },
+            stdout: stdout(),
+        }
     }
 
     pub fn run(&mut self) {
@@ -21,12 +33,7 @@ impl Editor {
     }
 
     fn repl(&mut self) -> Result<(), std::io::Error> {
-        let mut buffer: Vec<String> = vec![String::new()];
-        let (mut cursor_x, mut cursor_y) = (0, 0);
-
-        let mut stdout: Stdout = stdout();
-
-        termx::Termx::setup(&mut stdout)?;
+        termx::Termx::setup(&mut self.stdout)?;
 
         loop {
             let event = event::read()?;
@@ -34,18 +41,22 @@ impl Editor {
             if let Event::Key(key_event) = event {
                 match termx::InputHandler::quit(&key_event) {
                     termx::UseEditor::Quit => {
-                        return termx::Termx::cleanup(&stdout);
+                        return termx::Termx::cleanup(&self.stdout);
                     }
 
                     termx::UseEditor::Continue => match key_event.kind {
                         KeyEventKind::Press => {
-                            termx::InputHandler::read(
+                            termx::InputHandler::register_event(
                                 &key_event,
-                                &mut buffer,
-                                &mut cursor_x,
-                                &mut cursor_y,
+                                &mut self.buffer,
+                                &mut self.cursor_position,
                             );
-                            termx::InputHandler::render(&buffer, &cursor_x, &cursor_y)?;
+                            termx::InputHandler::render(
+                                &self.buffer,
+                                &self.cursor_position.x,
+                                &self.cursor_position.y,
+                                &mut self.stdout,
+                            )?;
                         }
                         _ => (),
                     },

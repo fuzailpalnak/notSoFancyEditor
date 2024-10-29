@@ -1,5 +1,6 @@
+use crate::editor::Position;
+
 use std::io::Stdout;
-use std::io::{self, Write};
 
 use crossterm::cursor;
 use crossterm::cursor::MoveTo;
@@ -17,7 +18,7 @@ pub enum UseEditor {
 
 pub struct Termx {}
 pub struct InputHandler {}
-pub struct KeyStroke {}
+pub struct Action {}
 
 impl Termx {
     pub fn setup(mut stdout: &Stdout) -> Result<(), std::io::Error> {
@@ -46,16 +47,15 @@ impl InputHandler {
         }
     }
 
-    pub fn read(
+    pub fn register_event(
         key_event: &KeyEvent,
         buffer: &mut Vec<String>,
-        cursor_x: &mut usize,
-        cursor_y: &mut usize,
+        cursor_position: &mut Position,
     ) {
         match key_event.code {
-            KeyCode::Char(c) => KeyStroke::data(buffer, cursor_x, cursor_y, c),
-            KeyCode::Enter => KeyStroke::enter(buffer, cursor_x, cursor_y),
-            KeyCode::Backspace => KeyStroke::back_space(buffer, cursor_x, cursor_y),
+            KeyCode::Char(c) => Action::read(buffer, cursor_position, c),
+            KeyCode::Enter => Action::enter(buffer, cursor_position),
+            KeyCode::Backspace => Action::back_space(buffer, cursor_position),
             _ => {}
         }
     }
@@ -64,8 +64,8 @@ impl InputHandler {
         buffer: &[String],
         cursor_x: &usize,
         cursor_y: &usize,
+        stdout: &mut Stdout,
     ) -> Result<(), std::io::Error> {
-        let mut stdout = io::stdout();
         execute!(stdout, MoveTo(0, 0), Clear(ClearType::All))?;
 
         // println!(
@@ -84,47 +84,42 @@ impl InputHandler {
     }
 }
 
-impl KeyStroke {
-    pub fn data(
-        buffer: &mut Vec<String>,
-        cursor_x: &mut usize,
-        cursor_y: &mut usize,
-        input_char: char,
-    ) {
-        match buffer.get_mut(*cursor_y) {
+impl Action {
+    pub fn read(buffer: &mut Vec<String>, cursor_position: &mut Position, input_char: char) {
+        match buffer.get_mut(cursor_position.y) {
             Some(line) => {
-                line.insert(*cursor_x, input_char);
-                *cursor_x += 1;
+                line.insert(cursor_position.x, input_char);
+                cursor_position.x += 1;
             }
             None => {}
         }
     }
 
-    pub fn enter(buffer: &mut Vec<String>, cursor_x: &mut usize, cursor_y: &mut usize) {
-        match buffer.get_mut(*cursor_y) {
+    pub fn enter(buffer: &mut Vec<String>, cursor_position: &mut Position) {
+        match buffer.get_mut(cursor_position.y) {
             Some(_line) => {
                 buffer.push("\n".to_string());
                 buffer.push(String::new());
 
-                *cursor_x = 0;
-                *cursor_y += 1;
+                cursor_position.x = 0;
+                cursor_position.y += 1;
             }
             None => {}
         }
     }
 
-    pub fn back_space(buffer: &mut Vec<String>, cursor_x: &mut usize, cursor_y: &mut usize) {
-        match buffer.get_mut(*cursor_y) {
+    pub fn back_space(buffer: &mut Vec<String>, cursor_position: &mut Position) {
+        match buffer.get_mut(cursor_position.y) {
             Some(_) => {
-                if *cursor_x > 0 {
-                    buffer[*cursor_y].remove(*cursor_x - 1);
-                    *cursor_x -= 1;
-                } else if *cursor_y > 0 {
-                    let previous_line_length = buffer[*cursor_y - 1].len();
-                    let current_line = buffer.remove(*cursor_y);
-                    buffer[*cursor_y - 1].push_str(&current_line);
-                    *cursor_x = previous_line_length;
-                    *cursor_y -= 1;
+                if cursor_position.x > 0 {
+                    buffer[cursor_position.y].remove(cursor_position.x - 1);
+                    cursor_position.x -= 1;
+                } else if cursor_position.y > 0 {
+                    let previous_line_length = buffer[cursor_position.y - 1].len();
+                    let current_line = buffer.remove(cursor_position.y);
+                    buffer[cursor_position.y - 1].push_str(&current_line);
+                    cursor_position.x = previous_line_length;
+                    cursor_position.y -= 1;
                 }
             }
 
