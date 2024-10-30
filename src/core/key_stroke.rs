@@ -13,10 +13,10 @@ impl KeyStroke {
         }
     }
 
-    pub fn enter(buffer: &mut Vec<String>, cursor_position: &mut Position) {
+    pub fn move_to_newline(buffer: &mut Vec<String>, cursor_position: &mut Position) {
         match buffer.get_mut(cursor_position.y) {
-            Some(_line) => {
-                buffer.push("\n".to_string());
+            Some(_) => {
+                buffer.push(String::new());
                 cursor_position.x = 0;
                 cursor_position.y += 1;
             }
@@ -39,6 +39,64 @@ impl KeyStroke {
                 }
             }
 
+            None => {}
+        }
+    }
+
+    pub fn move_up(buffer: &mut Vec<String>, cursor_position: &mut Position) {
+        match buffer.get_mut(cursor_position.y) {
+            Some(_) => {
+                if cursor_position.y > 0 {
+                    cursor_position.y -= 1;
+
+                    if cursor_position.x > buffer[cursor_position.y].len() {
+                        cursor_position.x = buffer[cursor_position.y].len();
+                    }
+                }
+            }
+            None => {}
+        }
+    }
+
+    pub fn move_down(buffer: &mut Vec<String>, cursor_position: &mut Position) {
+        match buffer.get_mut(cursor_position.y) {
+            Some(_) => {
+                if cursor_position.y < buffer.len() - 1 {
+                    cursor_position.y += 1;
+
+                    if cursor_position.x > buffer[cursor_position.y].len() {
+                        cursor_position.x = buffer[cursor_position.y].len();
+                    }
+                }
+            }
+            None => {}
+        }
+    }
+
+    pub fn move_left(buffer: &mut Vec<String>, cursor_position: &mut Position) {
+        match buffer.get_mut(cursor_position.y) {
+            Some(_) => {
+                if cursor_position.x > 0 {
+                    cursor_position.x -= 1;
+                } else if cursor_position.y > 0 {
+                    cursor_position.y -= 1;
+                    cursor_position.x = buffer[cursor_position.y].len();
+                }
+            }
+            None => {}
+        }
+    }
+
+    pub fn move_right(buffer: &mut Vec<String>, cursor_position: &mut Position) {
+        match buffer.get_mut(cursor_position.y) {
+            Some(_) => {
+                if cursor_position.x < buffer[cursor_position.y].len() {
+                    cursor_position.x += 1;
+                } else if cursor_position.y < buffer.len() - 1 {
+                    cursor_position.y += 1;
+                    cursor_position.x = 0;
+                }
+            }
             None => {}
         }
     }

@@ -40,8 +40,12 @@ impl Editor {
     ) {
         match key_event.code {
             KeyCode::Char(c) => key_stroke::KeyStroke::read(buffer, cursor_position, c),
-            KeyCode::Enter => key_stroke::KeyStroke::enter(buffer, cursor_position),
+            KeyCode::Enter => key_stroke::KeyStroke::move_to_newline(buffer, cursor_position),
             KeyCode::Backspace => key_stroke::KeyStroke::back_space(buffer, cursor_position),
+            KeyCode::Up => key_stroke::KeyStroke::move_up(buffer, cursor_position),
+            KeyCode::Down => key_stroke::KeyStroke::move_down(buffer, cursor_position),
+            KeyCode::Left => key_stroke::KeyStroke::move_left(buffer, cursor_position),
+            KeyCode::Right => key_stroke::KeyStroke::move_right(buffer, cursor_position),
             _ => {}
         }
     }
