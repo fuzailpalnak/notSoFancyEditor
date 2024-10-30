@@ -3,21 +3,26 @@ mod termx;
 
 #[path = "key_stroke.rs"]
 mod key_stroke;
+use key_stroke::KeyStroke;
 
-use std::io::{stdout, Stdout};
+use chrono::{DateTime, Local};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use std::fs::File;
+use std::io::{self, stdout, Stdout, Write};
 
-use crossterm::event::{self, Event, KeyEventKind};
-use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-
-pub enum UseEditor {
+/// Represents the outcome of handling an editor event.
+pub enum EditorAction {
     Continue,
     Quit,
 }
 
+/// Position of the cursor in the editor buffer.
 pub struct Position {
     pub x: usize,
     pub y: usize,
 }
+
+/// Main text editor struct, containing buffer and cursor information.
 pub struct Editor {
     buffer: Vec<String>,
     cursor_position: Position,
@@ -25,78 +30,85 @@ pub struct Editor {
 }
 
 impl Editor {
-    pub fn default() -> Self {
-        Editor {
+    /// Creates a new editor instance with default settings.
+    pub fn new() -> Self {
+        Self {
             buffer: vec![String::new()],
             cursor_position: Position { x: 0, y: 0 },
             stdout: stdout(),
         }
     }
 
-    pub fn register_event(
-        key_event: &KeyEvent,
-        buffer: &mut Vec<String>,
-        cursor_position: &mut Position,
-    ) {
+    /// Saves the editor's buffer to a file with a timestamped name.
+    pub fn save(&self) -> io::Result<()> {
+        let datetime = Local::now();
+        let filename = format!("output_{}.txt", datetime.format("%Y-%m-%d_%H-%M-%S"));
+        let mut file = File::create(&filename)?;
+        for line in &self.buffer {
+            writeln!(file, "{}", line)?;
+        }
+        Ok(())
+    }
+
+    /// Registers key events for editor functionality.
+    pub fn handle_event(&mut self, key_event: &KeyEvent) -> EditorAction {
         match key_event.code {
-            KeyCode::Char(c) => key_stroke::KeyStroke::read(buffer, cursor_position, c),
-            KeyCode::Enter => key_stroke::KeyStroke::move_to_newline(buffer, cursor_position),
-            KeyCode::Backspace => key_stroke::KeyStroke::back_space(buffer, cursor_position),
-            KeyCode::Up => key_stroke::KeyStroke::move_up(buffer, cursor_position),
-            KeyCode::Down => key_stroke::KeyStroke::move_down(buffer, cursor_position),
-            KeyCode::Left => key_stroke::KeyStroke::move_left(buffer, cursor_position),
-            KeyCode::Right => key_stroke::KeyStroke::move_right(buffer, cursor_position),
-            _ => {}
+            KeyCode::Char('s') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                match self.save() {
+                    Ok(()) => EditorAction::Continue,
+                    Err(_) => EditorAction::Quit,
+                }
+            }
+            KeyCode::Char('x') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
+                EditorAction::Quit
+            }
+            KeyCode::Char(c) => {
+                KeyStroke::insert_char(&mut self.buffer, &mut self.cursor_position, c);
+                EditorAction::Continue
+            }
+            KeyCode::Enter => {
+                KeyStroke::new_line(&mut self.buffer, &mut self.cursor_position);
+                EditorAction::Continue
+            }
+            KeyCode::Backspace => {
+                KeyStroke::backspace(&mut self.buffer, &mut self.cursor_position);
+                EditorAction::Continue
+            }
+            KeyCode::Up | KeyCode::Down | KeyCode::Left | KeyCode::Right => {
+                KeyStroke::move_cursor(&mut self.buffer, &mut self.cursor_position, key_event.code);
+                EditorAction::Continue
+            }
+            _ => EditorAction::Continue,
         }
     }
 
-    pub fn quit(key_event: &KeyEvent) -> UseEditor {
-        match key_event {
-            KeyEvent {
-                code: KeyCode::Char('x'),
-                modifiers: KeyModifiers::CONTROL,
-                ..
-            } => UseEditor::Quit,
-            _ => UseEditor::Continue,
-        }
-    }
-
+    /// Main editor loop to read and process events.
     pub fn run(&mut self) {
-        let result = self.repl();
-        match result {
-            Err(err) => panic!("{err:#?}"),
-            _ => println!("Goodbye."),
+        if let Err(err) = self.event_loop() {
+            eprintln!("Error: {:?}", err);
         }
     }
 
-    fn repl(&mut self) -> Result<(), std::io::Error> {
+    fn event_loop(&mut self) -> io::Result<()> {
         termx::Termx::setup(&mut self.stdout)?;
         termx::Termx::render(&self.buffer, &self.cursor_position, &mut self.stdout)?;
 
         loop {
             let event = event::read()?;
-
             if let Event::Key(key_event) = event {
-                match Editor::quit(&key_event) {
-                    UseEditor::Quit => {
-                        return termx::Termx::cleanup(&self.stdout);
-                    }
-
-                    UseEditor::Continue => match key_event.kind {
-                        KeyEventKind::Press => {
-                            Editor::register_event(
-                                &key_event,
-                                &mut self.buffer,
-                                &mut self.cursor_position,
-                            );
+                if let KeyEventKind::Press = key_event.kind {
+                    match self.handle_event(&key_event) {
+                        EditorAction::Continue => {
                             termx::Termx::render(
                                 &self.buffer,
                                 &self.cursor_position,
                                 &mut self.stdout,
                             )?;
                         }
-                        _ => (),
-                    },
+                        EditorAction::Quit => {
+                            return termx::Termx::cleanup(&self.stdout);
+                        }
+                    }
                 }
             }
         }

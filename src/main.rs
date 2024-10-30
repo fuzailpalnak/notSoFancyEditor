@@ -2,5 +2,5 @@
 mod editor;
 
 fn main() {
-    editor::Editor::default().run();
+    editor::Editor::new().run();
 }
