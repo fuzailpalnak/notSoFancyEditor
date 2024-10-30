@@ -27,6 +27,7 @@ pub struct Editor {
     buffer: Vec<String>,
     cursor_position: Position,
     stdout: Stdout,
+    datetime: DateTime<Local>,
 }
 
 impl Editor {
@@ -36,13 +37,13 @@ impl Editor {
             buffer: vec![String::new()],
             cursor_position: Position { x: 0, y: 0 },
             stdout: stdout(),
+            datetime: Local::now(),
         }
     }
 
     /// Saves the editor's buffer to a file with a timestamped name.
     pub fn save(&self) -> io::Result<()> {
-        let datetime = Local::now();
-        let filename = format!("output_{}.txt", datetime.format("%Y-%m-%d_%H-%M-%S"));
+        let filename = format!("output_{}.txt", self.datetime.format("%Y-%m-%d_%H-%M-%S"));
         let mut file = File::create(&filename)?;
         for line in &self.buffer {
             writeln!(file, "{}", line)?;
