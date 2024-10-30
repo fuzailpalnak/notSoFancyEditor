@@ -1,4 +1,5 @@
 # NotSoFancyEditor
+![NotSoFancyEditor](https://github.com/user-attachments/assets/b49a4e7f-f8bc-4040-95dc-eede8c818341)
 
 This is a simple terminal based text editor built in Rust, allowing users to type, delete, and save text files directly from the terminal. This project serves as a practical introduction to Rust's features and capabilities, particularly focusing on memory safety and efficient resource management.
 

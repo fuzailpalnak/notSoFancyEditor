@@ -38,8 +38,22 @@ impl KeyStroke {
         direction: KeyCode,
     ) {
         match direction {
-            KeyCode::Up if cursor_position.y > 0 => cursor_position.y -= 1,
-            KeyCode::Down if cursor_position.y < buffer.len() - 1 => cursor_position.y += 1,
+            KeyCode::Up => {
+                if cursor_position.y > 0 {
+                    cursor_position.y -= 1;
+                    if cursor_position.x > buffer[cursor_position.y].len() {
+                        cursor_position.x = buffer[cursor_position.y].len();
+                    }
+                }
+            }
+            KeyCode::Down => {
+                if cursor_position.y < buffer.len() - 1 {
+                    cursor_position.y += 1;
+                    if cursor_position.x > buffer[cursor_position.y].len() {
+                        cursor_position.x = buffer[cursor_position.y].len();
+                    }
+                }
+            }
             KeyCode::Left if cursor_position.x > 0 => cursor_position.x -= 1,
             KeyCode::Right if cursor_position.x < buffer[cursor_position.y].len() => {
                 cursor_position.x += 1
